@@ -6,7 +6,7 @@ from django.utils.decorators import method_decorator
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Sum, Count
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 import json
 from .models import Patient, Medicine, Purchase, Visit, Sale
@@ -46,18 +46,63 @@ class DashboardView(View):
         # সাম্প্রতিক ভিজিট
         recent_visits = Visit.objects.select_related('patient').order_by('-visit_date')[:5]
         
-        # সাপ্তাহিক বিক্রয় ডেটা (গত ৭ দিন)
-        weekly_sales = []
-        weekly_labels = []
-        for i in range(6, -1, -1):
-            date = today - timedelta(days=i)
-            daily_sales = Sale.objects.filter(sale_date__date=date).aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
-            weekly_sales.append(float(daily_sales))
+        # পেমেন্ট টাইপ ডিস্ট্রিবিউশন (পাই চার্ট)
+        total_cash_sales = Sale.objects.filter(payment_type='cash').aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+        total_credit_sales = Sale.objects.filter(payment_type='credit').aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+        
+        # মাসিক বিক্রয় ট্রেন্ড (বার চার্ট - গত ৬ মাস)
+        monthly_sales_data = []
+        monthly_labels = []
+        
+        for i in range(5, -1, -1):
+            # Calculate month by going back i months
+            year = today.year
+            month = today.month - i
             
-            # বাংলা দিনের নাম
-            day_names = ['সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার', 'রবিবার']
-            day_name = day_names[date.weekday()]
-            weekly_labels.append(day_name)
+            # Adjust year if month goes negative
+            while month <= 0:
+                month += 12
+                year -= 1
+            
+            # Get first day of the month
+            month_start_date = date(year, month, 1)
+            
+            # Get last day of month
+            if i == 0:
+                month_end_date = today
+            else:
+                # Get first day of next month, then subtract 1 day
+                next_month = month + 1
+                next_year = year
+                if next_month > 12:
+                    next_month = 1
+                    next_year += 1
+                month_end_date = date(next_year, next_month, 1) - timedelta(days=1)
+            
+            # Create datetime range
+            start_datetime = timezone.make_aware(datetime.combine(month_start_date, datetime.min.time()))
+            end_datetime = timezone.make_aware(datetime.combine(month_end_date, datetime.max.time()))
+            
+            month_sales_total = Sale.objects.filter(
+                sale_date__gte=start_datetime,
+                sale_date__lte=end_datetime
+            ).aggregate(Sum('total_price'))['total_price__sum'] or Decimal('0.00')
+            
+            monthly_sales_data.append(float(month_sales_total))
+            
+            # বাংলা মাসের নাম (সংক্ষিপ্ত)
+            month_names = ['জানু', 'ফেব্রু', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 
+                          'জুলাই', 'আগস্ট', 'সেপ্টে', 'অক্টো', 'নভে', 'ডিসে']
+            monthly_labels.append(f"{month_names[month - 1]} '{str(year)[2:]}")
+        
+        # টপ ৫ বিক্রিত ওষুধ
+        top_medicines = Sale.objects.values('medicine__name').annotate(
+            total_quantity=Sum('quantity'),
+            total_amount=Sum('total_price')
+        ).order_by('-total_quantity')[:5]
+        
+        top_medicine_names = [item['medicine__name'] for item in top_medicines]
+        top_medicine_quantities = [int(item['total_quantity']) for item in top_medicines]
         
         context = {
             **admin.site.each_context(request),
@@ -75,8 +120,15 @@ class DashboardView(View):
             'month_purchase': month_purchase,
             'month_profit': month_profit,
             'recent_visits': recent_visits,
-            'weekly_sales': json.dumps(weekly_sales),
-            'weekly_labels': json.dumps(weekly_labels),
+            # Pie chart data
+            'total_cash_sales': float(total_cash_sales),
+            'total_credit_sales': float(total_credit_sales),
+            # Bar chart data
+            'monthly_sales_data': json.dumps(monthly_sales_data),
+            'monthly_labels': json.dumps(monthly_labels),
+            # Top medicines
+            'top_medicine_names': json.dumps(top_medicine_names),
+            'top_medicine_quantities': json.dumps(top_medicine_quantities),
         }
         
         return render(request, 'admin/pharmacy/dashboard.html', context)

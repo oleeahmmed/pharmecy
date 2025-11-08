@@ -102,13 +102,36 @@
         </div>
     </div>
 
-    <!-- Weekly Sales Chart -->
+    <!-- Charts Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Monthly Sales Bar Chart -->
+        <div class="rounded-xl border bg-card text-card-foreground shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+            <div class="p-6 border-b border-border">
+                <h3 class="text-lg font-semibold">{% trans "মাসিক বিক্রয় (গত ৬ মাস)" %}</h3>
+            </div>
+            <div class="p-6">
+                <canvas id="monthlySalesChart" height="250"></canvas>
+            </div>
+        </div>
+
+        <!-- Payment Type Pie Chart -->
+        <div class="rounded-xl border bg-card text-card-foreground shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+            <div class="p-6 border-b border-border">
+                <h3 class="text-lg font-semibold">{% trans "পেমেন্ট টাইপ বিতরণ" %}</h3>
+            </div>
+            <div class="p-6">
+                <canvas id="paymentTypeChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Medicines Bar Chart -->
     <div class="rounded-xl border bg-card text-card-foreground shadow-md hover:shadow-lg transition-shadow overflow-hidden">
         <div class="p-6 border-b border-border">
-            <h3 class="text-lg font-semibold">{% trans "সাপ্তাহিক বিক্রয়" %}</h3>
+            <h3 class="text-lg font-semibold">{% trans "টপ ৫ বিক্রিত ওষুধ" %}</h3>
         </div>
         <div class="p-6">
-            <canvas id="weeklySalesChart" height="80"></canvas>
+            <canvas id="topMedicinesChart" height="80"></canvas>
         </div>
     </div>
 
@@ -184,19 +207,19 @@
 </div>
 
 <script>
-    // Weekly Sales Chart
-    const ctx = document.getElementById('weeklySalesChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
+    // Monthly Sales Bar Chart
+    const monthlyCtx = document.getElementById('monthlySalesChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'bar',
         data: {
-            labels: {{ weekly_labels|safe }},
+            labels: {{ monthly_labels|safe }},
             datasets: [{
-                label: 'বিক্রয় (৳)',
-                data: {{ weekly_sales|safe }},
+                label: 'মাসিক বিক্রয় (৳)',
+                data: {{ monthly_sales_data|safe }},
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
                 borderColor: 'rgb(99, 102, 241)',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.4,
-                fill: true
+                borderWidth: 2,
+                borderRadius: 8
             }]
         },
         options: {
@@ -213,7 +236,99 @@
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '৳' + value;
+                            return '৳' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Payment Type Pie Chart
+    const paymentCtx = document.getElementById('paymentTypeChart').getContext('2d');
+    new Chart(paymentCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['নগদ', 'বাকি'],
+            datasets: [{
+                data: [{{ total_cash_sales }}, {{ total_credit_sales }}],
+                backgroundColor: [
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(251, 146, 60, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(34, 197, 94)',
+                    'rgb(251, 146, 60)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '৳' + context.parsed.toLocaleString();
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Top Medicines Bar Chart
+    const topMedicinesCtx = document.getElementById('topMedicinesChart').getContext('2d');
+    new Chart(topMedicinesCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ top_medicine_names|safe }},
+            datasets: [{
+                label: 'বিক্রিত পরিমাণ (পিস)',
+                data: {{ top_medicine_quantities|safe }},
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(251, 146, 60, 0.8)',
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(168, 85, 247, 0.8)'
+                ],
+                borderColor: [
+                    'rgb(239, 68, 68)',
+                    'rgb(251, 146, 60)',
+                    'rgb(34, 197, 94)',
+                    'rgb(59, 130, 246)',
+                    'rgb(168, 85, 247)'
+                ],
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' পিস';
                         }
                     }
                 }

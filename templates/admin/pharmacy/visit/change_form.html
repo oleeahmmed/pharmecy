@@ -1,0 +1,416 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Hide related widget wrapper links */
+    .related-widget-wrapper-link,
+    .change-related,
+    .add-related,
+    .delete-related,
+    .view-related {
+        display: none !important;
+    }
+
+    /* Ensure inline formset is visible and properly styled */
+    .inline-group {
+        display: block !important;
+        margin: 20px 0;
+    }
+
+    .inline-group .tabular {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .inline-group table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .inline-group thead th {
+        padding: 12px 8px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid rgb(var(--color-border-200));
+    }
+
+    .inline-group tbody td {
+        padding: 8px;
+        border-bottom: 1px solid rgb(var(--color-border-100));
+        vertical-align: middle;
+    }
+
+    /* Ensure all inputs have consistent borders and heights with VISIBLE borders */
+    .inline-group input[type="text"],
+    .inline-group input[type="number"],
+    .inline-group select {
+        display: block !important;
+        width: 100%;
+        min-width: 80px;
+        height: 40px !important;
+        padding: 0 12px !important;
+        border: 1px solid #d1d5db !important;
+        /* Light gray border - always visible */
+        border-radius: 6px !important;
+        background-color: transparent !important;
+        font-size: 14px;
+        line-height: 40px;
+        transition: all 0.2s ease;
+    }
+
+    .dark .inline-group input[type="text"],
+    .dark .inline-group input[type="number"],
+    .dark .inline-group select {
+        border-color: #4b5563 !important;
+        /* Darker gray for dark mode */
+    }
+
+    .inline-group input[type="text"]:focus,
+    .inline-group input[type="number"]:focus,
+    .inline-group select:focus {
+        outline: none !important;
+        border-color: rgb(var(--color-primary-500)) !important;
+        box-shadow: 0 0 0 3px rgb(var(--color-primary-100) / 0.2) !important;
+    }
+
+    .dark .inline-group input[type="text"]:focus,
+    .dark .inline-group input[type="number"]:focus,
+    .dark .inline-group select:focus {
+        border-color: rgb(var(--color-primary-400)) !important;
+        box-shadow: 0 0 0 3px rgb(var(--color-primary-900) / 0.3) !important;
+    }
+
+    /* Checkbox styling */
+    .inline-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    /* Unfold Tailwind-style Add row button */
+    .inline-group .add-row a {
+        display: block !important;
+        background: #7c3aed !important;
+        /* bg-primary-600 - solid purple */
+        border: 1px solid transparent !important;
+        cursor: pointer !important;
+        font-weight: 500 !important;
+        padding: 0.5rem 0.75rem !important;
+        /* py-2 px-3 */
+        border-radius: 6px !important;
+        /* rounded-default */
+        color: #ffffff !important;
+        /* text-white - solid white */
+        width: 100% !important;
+        text-align: center;
+        margin-top: 16px;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+        text-decoration: none !important;
+    }
+
+    @media (min-width: 1024px) {
+        .inline-group .add-row a {
+            width: auto !important;
+            /* lg:w-auto */
+        }
+    }
+
+    .inline-group .add-row a:hover {
+        background: #6d28d9 !important;
+        /* Darker purple on hover */
+    }
+
+    .inline-group .add-row a::before {
+        content: '+ ';
+        font-weight: 600;
+        color: #ffffff !important;
+    }
+
+    /* Total price display - theme aware */
+    .total-price {
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        text-align: center;
+        background-color: rgb(var(--color-success-50));
+        color: rgb(var(--color-success-700));
+        border: 1px solid rgb(var(--color-success-200));
+    }
+
+    /* Dark mode support for total price */
+    .dark .total-price {
+        background-color: rgb(var(--color-success-900) / 0.3);
+        color: rgb(var(--color-success-300));
+        border-color: rgb(var(--color-success-700));
+    }
+
+    /* Grand total display - theme aware */
+    .grand-total {
+        background-color: rgb(var(--color-success-50));
+        border: 2px solid rgb(var(--color-success-200));
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin: 20px 0;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 700;
+        color: rgb(var(--color-success-800));
+    }
+
+    /* Dark mode support for grand total */
+    .dark .grand-total {
+        background-color: rgb(var(--color-success-900) / 0.2);
+        border-color: rgb(var(--color-success-700));
+        color: rgb(var(--color-success-200));
+    }
+
+    /* Deleted row styling - theme aware */
+    .deleted-row {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+
+    .deleted-row td {
+        background-color: rgb(var(--color-error-50)) !important;
+    }
+
+    .dark .deleted-row td {
+        background-color: rgb(var(--color-error-900) / 0.2) !important;
+    }
+
+    /* Loading animation */
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.6;
+        }
+    }
+
+    .loading {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Total column header */
+    .total-header {
+        text-align: center !important;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .grand-total {
+            font-size: 14px;
+            padding: 16px;
+        }
+
+        .total-price {
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script>
+    (function ($) {
+        $(document).ready(function () {
+
+            // Auto-populate unit price when medicine is selected
+            function updateUnitPrice(medicineSelect) {
+                var medicineId = medicineSelect.val();
+                var row = medicineSelect.closest('tr');
+                var unitPriceField = row.find('input[name$="unit_price"]');
+
+                if (medicineId) {
+                    // Add loading animation
+                    unitPriceField.addClass('loading');
+
+                    $.ajax({
+                        url: '/admin/get-medicine-price/',
+                        data: { 'medicine_id': medicineId },
+                        method: 'GET',
+                        success: function (data) {
+                            if (data.price) {
+                                unitPriceField.val(parseFloat(data.price).toFixed(2));
+                                calculateRowTotal(row);
+                            }
+                            unitPriceField.removeClass('loading');
+                        },
+                        error: function () {
+                            console.error('Failed to fetch medicine price');
+                            unitPriceField.val('0.00');
+                            unitPriceField.removeClass('loading');
+                        }
+                    });
+                } else {
+                    unitPriceField.val('0.00');
+                    calculateRowTotal(row);
+                }
+            }
+
+            // Calculate total for a row with animation
+            function calculateRowTotal(row) {
+                var quantity = parseFloat(row.find('input[name$="quantity"]').val()) || 0;
+                var unitPrice = parseFloat(row.find('input[name$="unit_price"]').val()) || 0;
+                var total = quantity * unitPrice;
+
+                // Update or create total display
+                var totalCell = row.find('.total-cell');
+                if (totalCell.length === 0) {
+                    row.append('<td class="total-cell"><div class="total-price">৳0.00</div></td>');
+                    totalCell = row.find('.total-cell');
+                }
+
+                // Animate the price change
+                var priceElement = totalCell.find('.total-price');
+                priceElement.addClass('loading');
+
+                setTimeout(function () {
+                    priceElement.text('৳' + total.toFixed(2));
+                    priceElement.removeClass('loading');
+                }, 200);
+
+                updateGrandTotal();
+            }
+
+            // Update grand total with enhanced display
+            function updateGrandTotal() {
+                var grandTotal = 0;
+                var cashTotal = 0;
+                var creditTotal = 0;
+
+                $('.inline-group tbody tr:not(.empty-form)').each(function () {
+                    var row = $(this);
+                    var deleteCheckbox = row.find('input[name$="DELETE"]');
+
+                    if (deleteCheckbox.length && deleteCheckbox.is(':checked')) {
+                        return; // Skip deleted rows
+                    }
+
+                    var quantity = parseFloat(row.find('input[name$="quantity"]').val()) || 0;
+                    var unitPrice = parseFloat(row.find('input[name$="unit_price"]').val()) || 0;
+                    var total = quantity * unitPrice;
+                    var paymentType = row.find('select[name$="payment_type"]').val();
+
+                    grandTotal += total;
+
+                    if (paymentType === 'cash') {
+                        cashTotal += total;
+                    } else if (paymentType === 'credit') {
+                        creditTotal += total;
+                    }
+                });
+
+                // Update or create grand total display
+                var grandTotalDisplay = $('.grand-total');
+                if (grandTotalDisplay.length === 0) {
+                    $('.inline-group').append('<div class="grand-total">মোট: ৳0.00</div>');
+                    grandTotalDisplay = $('.grand-total');
+                }
+
+                grandTotalDisplay.html(
+                    '<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">' +
+                    '<span style="color: var(--color-success-600);">💰 নগদ: ৳' + cashTotal.toFixed(2) + '</span>' +
+                    '<span style="color: var(--color-warning-600);">📋 বাকি: ৳' + creditTotal.toFixed(2) + '</span>' +
+                    '<span style="font-size: 20px; color: var(--color-success-800);">🏆 <strong>মোট: ৳' + grandTotal.toFixed(2) + '</strong></span>' +
+                    '</div>'
+                );
+            }
+
+            // Add total column header if not exists
+            function addTotalColumn() {
+                var headerRow = $('.inline-group thead tr');
+                if (headerRow.find('.total-header').length === 0) {
+                    headerRow.append('<th class="total-header">💰 মোট দাম</th>');
+                }
+
+                // Add total cells to existing rows
+                $('.inline-group tbody tr').each(function () {
+                    var row = $(this);
+                    if (row.find('.total-cell').length === 0) {
+                        row.append('<td class="total-cell"><div class="total-price">৳0.00</div></td>');
+                    }
+                });
+            }
+
+            // Event bindings with enhanced animations
+            $(document).on('change', 'select[name$="medicine"]', function () {
+                $(this).closest('tr').addClass('loading');
+                updateUnitPrice($(this));
+                setTimeout(() => {
+                    $(this).closest('tr').removeClass('loading');
+                }, 500);
+            });
+
+            $(document).on('select2:select', 'select[name$="medicine"]', function (e) {
+                $(this).closest('tr').addClass('loading');
+                updateUnitPrice($(this));
+                setTimeout(() => {
+                    $(this).closest('tr').removeClass('loading');
+                }, 500);
+            });
+
+            $(document).on('input', 'input[name$="quantity"], input[name$="unit_price"]', function () {
+                calculateRowTotal($(this).closest('tr'));
+            });
+
+            $(document).on('change', 'select[name$="payment_type"]', function () {
+                updateGrandTotal();
+            });
+
+            $(document).on('change', 'input[name$="DELETE"]', function () {
+                var row = $(this).closest('tr');
+                if ($(this).is(':checked')) {
+                    row.addClass('deleted-row');
+                } else {
+                    row.removeClass('deleted-row');
+                }
+                updateGrandTotal();
+            });
+
+            // Initialize with animation
+            setTimeout(function () {
+                addTotalColumn();
+                $('.inline-group tbody tr:not(.empty-form)').each(function () {
+                    calculateRowTotal($(this));
+                });
+
+                // Add entrance animation
+                $('.module, .inline-group').css({
+                    'opacity': '0',
+                    'transform': 'translateY(20px)'
+                }).animate({
+                    'opacity': '1',
+                    'transform': 'translateY(0)'
+                }, 600);
+            }, 500);
+
+            // Handle new rows with animation
+            $(document).on('formset:added', function (event, $row) {
+                setTimeout(function () {
+                    addTotalColumn();
+
+                    // Animate new row
+                    $row.css({
+                        'opacity': '0',
+                        'transform': 'scale(0.95)'
+                    }).animate({
+                        'opacity': '1',
+                        'transform': 'scale(1)'
+                    }, 400);
+                }, 100);
+            });
+
+        });
+    })(django.jQuery || jQuery);
+</script>
+{% endblock %}
